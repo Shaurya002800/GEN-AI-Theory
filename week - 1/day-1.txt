@@ -1,0 +1,182 @@
+1.  **In Kernel** go to **Python Environment**.
+2.  There will be different code cells.
+3.  **First, import the function:**
+    ```python
+    from dotenv import load_dotenv
+    ```
+    *This function is used to take **API keys**, **passwords**, etc., from a **.env file** 
+    and load them into your **Python environment**. This way, you don't have to **hardcode 
+    sensitive info** directly in your script.*
+
+4.  **Now, use the function:**
+    ```python
+    load_dotenv(override=True)
+    ```
+    *This ensures your **.env file** is the **final source of truth**. This is important even 
+    if your computer or hosting platform already has an older **API key** set in the system 
+    environment variables.*
+
+-> import os
+openai_api_key = os.getenv('OPENAI_API_KEY')
+(looks for environment variable named OPENAI_API_KEY)
+
+If openai_api_key:
+    print (f"OpenAI API Key exists and so begins openai_api_key [:8] ...")
+else:
+    print ( "OpenAI API key not set - please read to the troubleshooting guide" )
+
+-> from openai import OpenAI -> class
+(use to connect openai API - its like gateway to models such as GPT-4, DALL_E, Whisper, etc)
+
+-> Creating an instance of this class
+openai = OpenAI()
+|            |
+the object   class you import
+
+so now the variable openai acts like a helper to communicate with OpenAI's
+
+
+Here is the text copied from the image, formatted for a text file and preserving the structure and notes:
+
+```
+# each dictionary has role & content
+# role: defines who is speaking (user, system or assistant)
+# content: (the text they said)
+
+-> Creating a list called messages
+messages = [
+    {"role": "user", "content": "What is 2+2?"}
+]
+
+-> Structure to call API
+
+response = openai.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+
+print(response.choices[0].message.content)
+
+# ----------------- Notes on the API Call -----------------
+
+=> openai.chat.completions.create()
+# this function sends your chat data to Open AI API.
+
+=> model = "gpt-4o-mini"
+# tells which model to use (lightweight, fast & cheap)
+
+=> messages = messages
+# passes your user message list to the model
+```
+
+
+# another example :-
+
+question_prompt = "Please propose a hard challenging question to assess someone's I.Q."
+
+messages = [
+    {"role": "user", "content": question_prompt}
+]
+
+response = openai.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+
+question = response.choices[0].message.content
+print(question)
+
+# On the call it will give the question, but if
+# we call it again, it will provide answer
+
+# To get an answer, you can use the output 'question' as the new content:
+messages = [
+    {"role": "user", "content": question}
+]
+
+response = openai.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+
+answer = response.choices[0].message.content
+print(answer)
+
+# ... you would then print the new response content to see the answer.
+
+
+# => First call
+# asks the AI to generate a question
+
+# => Second call
+# feeds that generated question back to
+# the AI and asks an answer
+
+# -> for nice formatting of the response:
+# from IPython.display import markdown, display
+# display(markdown(answer))
+#  |
+#  v
+# used when you want the AI's answer
+# to look nicely formatted
+
+# ----------------------------------------------------
+
+## Exercise
+
+# First try this: ask the LLM to pick a business area that might be worth. 
+Second: ask LLM to present a pain-point in the industry.
+Third: LLM call for a proposal to an urgent AI solution.
+
+
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+client = OpenAI()
+
+# Response 1: Ask for a business sector
+response1 = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[
+        {"role": "user", "content": "suggest one business sector for Agentic AI"}
+    ]
+)
+
+business_area = response1.choices[0].message.content
+print("Business area:", business_area)
+
+# Response 2: Ask for a pain point in that business sector
+# Note: The original image code is incomplete, I'll complete it using the pattern from the first call.
+
+prompt2 = f"In the business area of {business_area}, what is a major pain-point suitable for agentic AI?"
+
+messages2 = [
+    {"role": "user", "content": prompt2}
+]
+
+response2 = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages2
+)
+
+pain_point = response2.choices[0].message.content
+print("Major Pain-Point:", pain_point)
+
+# Response 3: Ask for an Agentic AI solution for that pain point
+
+prompt3 = f"Propose an Agent AI solution for: {pain_point}"
+
+messages3 = [
+    {"role": "user", "content": prompt3}
+]
+
+response3 = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages3
+)
+
+solution = response3.choices[0].message.content
+print("\nProposed Agent AI Solution:")
+print(solution)

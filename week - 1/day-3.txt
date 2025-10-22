@@ -1,0 +1,283 @@
+# Orchestrating LLMs
+
+# -> calling multiple LLMs
+# We will be calling paid APIs and open-source models in the cloud and locally.
+# You have complete flexibility to pick which you use and spend $0
+
+# -> The cast of characters
+# OpenAI: gpt-4o-mini (also gpt-4o, 01, 03-mini)
+# Anthropic: claude-3-5-sonnet
+# Google: gemini-2.0-flash
+# DeepSeek AI: Deepseek V3, DeepSeek R1
+# groq: open-source LLMs including Llama 3.3
+# Ollama: local open-source LLMs including Llama 3.2
+
+# The vellum leaderboards gives a comparison of costs and performance
+
+import os
+import json
+from dotenv import load_dotenv
+
+from openai import OpenAI
+from anthropic import Anthropic
+from IPython.display import Markdown, display
+
+load_dotenv(override=True)
+
+openai_api_key = os.getenv('OPEN_API_KEY')
+anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
+google_api_key = os.getenv('GOOGLE_API_KEY')
+deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+groq_api_key = os.getenv('GROQ_API_KEY')
+
+if openai_api_key:
+    print(f"openai key exists")
+else:
+    print("not set")
+
+if anthropic_api_key:
+    print(f"anthropic API key exists")
+else:
+    print("anthropic API key not set")
+
+# same for checking if other api working properly or not
+
+competitors = []
+answers = []
+
+# 1. Generate the Question
+# We'll use an LLM to generate the question for the competition.
+
+request = "Please come up with a challenging, nuanced question that I can ask a number of LLMs to evaluate their intelligence."
+request += " Answer only with the question, no explanation."
+messages = [{"role": "user", "content": request}]
+
+openai_client = OpenAI()
+response = openai_client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+)
+question = response.choices[0].message.content
+print(question)
+
+# 2. Get Answers from Competitors
+
+# The 'messages' list is already defined from the question generation:
+messages = [{"role": "user", "content": question}]
+
+# # first model (OpenAI)
+model_name = "gpt-4o-mini"
+response = openai_client.chat.completions.create(
+    model=model_name,
+    messages=messages,
+)
+answer = response.choices[0].message.content
+
+print(answer) # / display(Markdown(answer))
+competitors.append(model_name)
+answers.append(answer)
+
+
+# # second model (Anthropic)
+model_name = "claude-3-5-sonnet-latest"
+claude = Anthropic(api_key=anthropic_api_key)
+response = claude.messages.create(
+    model=model_name,
+    messages=messages,
+    max_tokens=1000
+)
+answer = response.content[0].text
+# display(Markdown(answer))
+competitors.append(model_name)
+answers.append(answer)
+
+
+# # third model (Google Gemini)
+gemini = OpenAI(
+    api_key=google_api_key,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai"
+)
+model_name = "gemini-2.0-flash"
+response = gemini.chat.completions.create(
+    model=model_name,
+    messages=messages,
+)
+answer = response.choices[0].message.content
+display(Markdown(answer))
+competitors.append(model_name)
+answers.append(answer)
+
+
+# # fourth model (Deepseek)
+deepseek = OpenAI(
+    api_key=deepseek_api_key,
+    base_url="https://api.deepseek.com/v1"
+)
+model_name = "deepseek-chat"
+response = deepseek.chat.completions.create(
+    model=model_name,
+    messages=messages
+)
+answer = response.choices[0].message.content
+display(Markdown(answer))
+competitors.append(model_name)
+answers.append(answer)
+
+
+# # fifth model (Groq)
+groq = OpenAI(
+    api_key=groq_api_key,
+    base_url="https://api.groq.com/openai/v1"
+)
+model_name = "llama-3.1-70b-versatile"
+response = groq.chat.completions.create(
+    model=model_name,
+    messages=messages
+)
+answer = response.choices[0].message.content
+# display(Markdown(answer))
+competitors.append(model_name)
+answers.append(answer)
+
+# next is ollama, for that we need to do few steps
+
+
+# 3. Compile Responses for Judging
+
+# # Now let's do a comparison
+print(competitors)
+print(answers)
+
+for competitor, answer in zip(competitors, answers):
+    print(f"Competitor: {competitor}\nAnswer: {answer}\n---")
+
+# # zip is used to combine two or more iterables (like lists, tuples) into a single iterable of tuples.
+
+# # Let's bring this together
+together = ""
+for index, answer in enumerate(answers):
+    # This combines the competitor name and their answer into a single string for the judge's prompt.
+    together += f"# Response from competitor {index+1}\n\n"
+    together += answer + "\n\n"
+
+
+# 4. Create the Judge Prompt and Rank Responses
+
+judge = f"""
+You are judging a competition between {len(competitors)} competitors.
+Each model has been given this question:
+{{question}}
+
+Your job is to evaluate each response for clarity and strength of argument and rank them in order of best to worst.
+Respond with JSON, and ONLY JSON, with the following format:
+{{"results": ["best competitor number", "second best competitor number", "third best competitor number", ...]}}
+Here are the responses from each competitor:
+{{together}}
+Now respond with the JSON with the ranked order of the competitors, nothing else. Do not include markdown formatting or code blocks.
+"""
+
+# print(judge)
+
+judge_messages = [{"role": "user", "content": judge}]
+
+# Use an LLM to act as the judge
+openai_client = OpenAI()
+response = openai_client.chat.completions.create(
+    model="gpt-4o-mini", # Using gpt-4o-mini as the judge
+    messages=judge_messages,
+)
+
+results = response.choices[0].message.content
+print(results)
+
+# Parse the JSON results
+# -> load JSON from string
+results_dict = json.loads(results)
+ranks = results_dict['results']
+
+# Print the final rankings
+for index, result in enumerate(ranks):
+    # The result is the competitor number (1-indexed), so we convert to int and subtract 1 to get the list index
+    competitor_index = int(result) - 1
+    ranked_competitor_name = competitors[competitor_index]
+    print(f"Rank {index+1}: {ranked_competitor_name}")
+
+
+
+
+# Excersice
+which pattern(s) did this use? try updating this to add another agentic design pattern.
+
+
+1. Routing Pattern
+
+You are routing the same task (the question) to multiple specialized LLMs — OpenAI, Anthropic, Gemini, DeepSeek, and Groq — to compare their capabilities.
+Essentially: “Send the same input to many agents and collect different perspectives.”
+
+for each model in competitors:
+    response = model.chat.completions.create(messages=messages)
+
+
+That’s routing in action — one question, many routes.
+
+2. Judging / Evaluation Pattern
+
+At the end, you use another LLM (gpt-4o-mini) to act as a judge and evaluate all responses.
+This is sometimes referred to as:
+
+“LLM-as-a-Judge”, or
+
+a Meta-Agent Pattern, where one agent critiques or ranks other agents’ outputs.
+
+So right now, your system is a combination of:
+
+Routing → Judging
+
+
+
+Now — let’s add another Agentic Design Pattern
+
+Let’s enhance it by adding the “Refinement Pattern” (also called “Self-Refinement” or “Critic Loop”).
+
+This pattern makes each model self-improve before submitting its final answer:
+
+Step 1: The model gives an initial draft answer.
+
+Step 2: A “critic agent” (which can even be the same model) reviews and refines it.
+
+Step 3: The improved version is what gets sent to the judge.
+
+🧠 Here’s how to add that refinement stage
+
+You can insert this after each model gives its first response, like this:
+
+# After each model produces its 'answer'
+refinement_prompt = f"""
+Please review your own answer below for clarity, logic, and depth.
+If you find weaknesses, refine or expand your response.
+Your goal is to make the answer as strong as possible.
+
+Original Answer:
+{answer}
+"""
+
+refine_messages = [{"role": "user", "content": refinement_prompt}]
+
+refined_response = openai_client.chat.completions.create(
+    model="gpt-4o-mini",  # using a smaller model as the critic
+    messages=refine_messages
+)
+
+refined_answer = refined_response.choices[0].message.content
+
+answers.append(refined_answer)
+
+
+Now each competitor’s final entry becomes a refined version of their initial thought — making the competition fairer and more realistic to how autonomous agents improve outputs.
+
+
+So your updated system architecture now follows this flow:
+
+Prompt Chaining → Routing → Refinement → Judging
+
+This makes it a powerful multi-agent orchestration pipeline with feedback and evaluation — closer to a true agentic system.

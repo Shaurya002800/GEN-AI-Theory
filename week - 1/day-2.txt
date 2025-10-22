@@ -1,0 +1,78 @@
+**Agents and Agentic Patterns**
+
+"AI agents are programs where **LLM outputs control the work flow**"
+
+In practice, describes an AI solution that involves any or all of these:
+-> Multiple **LLM calls**
+-> LLMs with ability to **use tools**
+-> An environment where LLMs interact
+-> A **planner** to coordinate activities
+-> **Autonomy**
+   -> **Self-governing** or **self-directed behavior**
+
+It means the AI doesn't just respond to commands - it can plan, decide, and act based on its **understanding of the environment or goals**.
+
+**-> Agentic Systems**
+distinguishes two types:
+1. **Work flow** are systems where LLMs and tools are **orchestrated through predefined code paths**.
+2. **Agents** are systems where LLMs **dynamically direct their own process** and tool usage, maintaining control over how they accomplish tasks.
+
+
+**Workflow patterns**
+
+1. **Prompt chaining**
+   decompose into strict sub tasks
+   (In) -> LLM 1 -> (Gate) -> LLM 2 -> LLM 3 -> (OUT)
+   connecting multiple prompts, where each prompt builds on previous one's O/T (output).
+
+2. **Routing**
+   Direct an input into a specialized sub-task, ensuring separation of concerns
+   (in) -> LLM Router -> [LLM 2, LLM 3] -> (OUT)
+   sending different user inputs to diff prompts, so running every request through the same chain; the system decides the correct "**route**" and sends it to the best handler.
+
+3. **Parallelization**
+   Breaking down tasks and running multiple subtasks concurrently
+   (in) -> coordinator -> [LLM 1, LLM 2, LLM 3] -> aggregator -> out
+
+4. **Orchestrator - Worker**
+   complex tasks are broken down **dynamically** and combined
+   (in) -> COOR -> [LLM 1, LLM 2] -> synthesizer -> (OUT)
+   here it is LLM
+   here a model is taking & combining the results
+
+5. **Evaluator - Optimizer**
+   LLM output is **validated by another**
+   (in) -> LLM Generator -> LLM Evaluator -> (OUT)
+   Rejected with feedback / Accepted
+   (very commonly used)
+
+---
+
+**By Contrast, Agents**
+
+
+1. **Open-ended**
+   Agents are designed to handle open-ended tasks that don't have a single right answer or a fixed way to solve them (search hotel, compare prices of flights)
+
+2. **Feedback loops**
+   Agents observe, evaluated and adjust their action based on results.
+   Human -> LLM call <- Environment
+   Action, Feedback
+   -> Stop
+
+3. **No fixed path**
+   The path changes based on:
+   - Situation
+   - Goal
+   - Outcome of previous action
+
+---
+
+**Risks of agent frameworks**
+
+* unpredictable path
+* unpredictable output
+* unpredictable costs
+* monitor
+
+"Guardrails ensure your agents behave **safely, consistently, and within your intended boundaries**"
