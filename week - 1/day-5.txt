@@ -1,0 +1,249 @@
+Python Function Explanations — Gemini + Tool Calls
+🧩 1. chat(message, history) Function
+def chat(message, history):
+    messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": message}]
+    response = gemini.chat.completions.create(model="gemini-2.5-flash-preview-05-20", messages=messages)
+    return response.choices[0].message.content
+
+🔍 Explanation
+
+Purpose:
+This function sends a conversation (system prompt + chat history + latest user message) to Google’s Gemini model and returns the model’s reply.
+
+Step-by-step:
+
+Build messages — combines:
+
+System prompt (sets model’s role/personality)
+
+Previous conversation (history)
+
+Latest user message
+
+Send to Gemini — using the chat completions API.
+
+Return the reply — extracts only the generated assistant text.
+
+Example:
+
+system_prompt = "You are a helpful assistant."
+history = [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello!"}]
+reply = chat("How are you?", history)
+print(reply)  # → "I'm great, how can I help?"
+
+🧩 2. evaluator_user_prompt(reply, message, history) Function
+def evaluator_user_prompt(reply, message, history):
+    user_prompt = f"Here's the conversation between the User and the Agent: \n\n{history}\n\n"
+    user_prompt += f"Here's the latest message from the User: \n\n{message}\n\n"
+    user_prompt += f"Here's the latest response from the Agent: \n\n{reply}\n\n"
+    user_prompt += "Please evaluate the response, replying with whether it is acceptable and your feedback."
+    return user_prompt
+
+🔍 Explanation
+
+Purpose:
+Creates a formatted evaluation prompt for another AI model to assess the quality of the AI’s response.
+
+Steps:
+
+Add the conversation history.
+
+Add the latest user message.
+
+Add the agent’s reply.
+
+Add a request asking for feedback.
+
+Return the whole text.
+
+Example Output:
+
+Here's the conversation between the User and the Agent:
+
+User: Hello!
+Agent: Hi there!
+
+Here's the latest message from the User:
+
+What is the capital of France?
+
+Here's the latest response from the Agent:
+
+The capital of France is Paris.
+
+Please evaluate the response, replying with whether it is acceptable and your feedback.
+
+🧩 3. evaluate(reply, message, history) Function
+def evaluate(reply, message, history) -> Evaluation:
+    messages = [{"role": "system", "content": evaluator_system_prompt}] + [{"role": "user", "content": evaluator_user_prompt(reply, message, history)}]
+    response = gemini.beta.chat.completions.parse(model="gemini-2.0-flash", messages=messages, response_format=Evaluation)
+    return response.choices[0].message.parsed
+
+🔍 Explanation
+
+Purpose:
+Uses Gemini to evaluate the quality of an AI response and return a structured result.
+
+Steps:
+
+Combine:
+
+A system prompt (tells Gemini it’s an evaluator)
+
+A user prompt (generated from evaluator_user_prompt)
+
+Send to Gemini using .parse() — which auto-parses output into an Evaluation object.
+
+Return the structured result.
+
+Example Output:
+
+Evaluation(verdict="Acceptable", feedback="Factually correct and concise.")
+
+🧩 4. Sending Direct Message to Gemini
+messages = [{"role": "system", "content": system_prompt}] + [{"role": "user", "content": "do you hold a patent?"}]
+response = gemini.chat.completions.create(model="gemini-2.5-flash-preview-05-20", messages=messages)
+reply = response.choices[0].message.content
+
+🔍 Explanation
+
+Purpose:
+Sends a simple message to Gemini and gets a response.
+
+Steps:
+
+Create messages list (system + user).
+
+Send it to Gemini.
+
+Extract reply text.
+
+Example Reply:
+
+As an AI model, I don’t personally hold any patents. However, my underlying technology may be patented by Google.
+
+
+Key Points:
+
+"role": "system" defines behavior.
+
+"role": "user" provides the input question.
+
+.choices[0].message.content gets the model’s text reply.
+
+🧩 5. handle_tool_calls(tool_calls) Function
+def handle_tool_calls(tool_calls):
+    results = []
+    for tool_call in tool_calls:
+        tool_name = tool_call.function.name
+        arguments = json.loads(tool_call.function.arguments)
+        print(f"Tool called: {tool_name}", flush=True)
+
+        if tool_name == "record_user_details":
+            result = record_user_details(**arguments)
+        elif tool_name == "record_unknown_question":
+            result = record_unknown_question(**arguments)
+
+        results.append({"role": "tool", "content": json.dumps(result), "tool_call_id": tool_call.id})
+    return results
+
+🔍 Explanation
+
+Purpose:
+Executes function calls requested by the AI model (tools/functions) and returns their results.
+
+Steps:
+
+Create an empty results list.
+
+Loop through all tool calls returned by the model.
+
+Extract:
+
+tool_name → name of function (e.g., "record_user_details")
+
+arguments → function arguments parsed from JSON.
+
+Use an if block to call the appropriate function.
+
+Store the result in structured form (role: tool, tool_call_id).
+
+Return the list of all tool results.
+
+Example Flow:
+If the AI says:
+
+{"function": {"name": "record_user_details", "arguments": "{\"name\": \"Shaurya\"}"}}
+
+
+Then:
+
+Python calls record_user_details(name="Shaurya").
+
+The result is stored and returned as:
+
+{"role": "tool", "content": "{\"status\": \"saved\"}", "tool_call_id": "abc123"}
+
+🧩 6. Using globals() for Dynamic Function Calls
+globals()["record_unknown_question"]("this is a really hard question")
+
+🔍 Explanation
+
+Purpose:
+Calls a function dynamically by name, even when the name is a string.
+
+How it works:
+
+globals() → returns a dictionary of all global variables and functions.
+
+globals()["record_unknown_question"] → fetches the function object from the dictionary.
+
+Adding ("this is a really hard question") → calls the function with that argument.
+
+Equivalent to:
+
+record_unknown_question("this is a really hard question")
+
+
+Why use it:
+When function names are not known in advance (e.g., provided by an AI model), this lets you call them dynamically.
+
+Example:
+
+def greet(name):
+    print("Hello,", name)
+
+globals()["greet"]("Shaurya")  # Output: Hello, Shaurya
+
+
+You can also use this to replace large if-elif chains:
+
+result = globals()[tool_name](**arguments)
+
+🧩 Summary of Concepts
+Concept	Description
+System Prompt	Sets the AI’s behavior/personality.
+Chat History	Previous user–assistant exchanges.
+Gemini .create()	Sends input messages to Gemini for generating text replies.
+Gemini .parse()	Sends input and gets structured JSON parsed into a Python class (like Evaluation).
+Tool Calls	Allow AI models to request function execution (e.g., record_user_details).
+globals()	Lets you access and call global functions dynamically using strings.
+🧠 Quick Analogy
+
+Think of this system as:
+
+User → asks a question.
+
+AI Agent → replies OR calls a “tool” (function).
+
+Tool Handler → executes that function and sends results back.
+
+Evaluator → checks if the AI’s reply was good or not.
+
+Together, these make up a self-improving, tool-using AI assistant.
+
+
+
+
+
+LINK OF THE CONVERSATION - https://chatgpt.com/share/68fb21e5-14b0-8001-a448-1ebb2e2c2cd3
